@@ -1,2 +1,2 @@
-gcc -m64 -I include/ -shared -o ./out/inject.dll inject.c
-gcc -O2 main.c -o ./out/main.exe
+cl ./inject.c /LD /Fe:"./out/inject.dll" /I "./Detours/include" /link "./Detours/lib.X64/detours.lib"
+cl ./main.c /Fe:"./out/main.exe"
