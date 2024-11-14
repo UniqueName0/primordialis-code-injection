@@ -4,6 +4,7 @@
 #include "debugTools.c"
 #include <detours.h>
 
+
 #pragma comment(lib, "user32.lib")
 
 #define Address(value) ((baseAddress < 0x140000000) ? (baseAddress + value) : (baseAddress + value - 0x140000000))
@@ -11,14 +12,94 @@
 uintptr_t baseAddress;
 
 
+typedef struct {
+  char* name;
+  char* version;
+  char* entrydll;
 
-void testInjection()
-{
+  void(*init)();
+  void(*detourInit)(void (*DetourAttach)(void*, void*));
+} modInfo;
 
-  printf("test injection\n");
+typedef struct {
+  int length;
+  modInfo** mods;
+} modList;
 
-  MessageBoxA(NULL, "test injection", "Mod Loader", MB_OK);
+void appendModToModList(modList* modlist, modInfo* mod){
+  modlist->length++;
+  realloc(modlist->mods, sizeof(modInfo*) * modlist->length);
+  modlist->mods[modlist->length - 1] = mod;
 }
+
+modInfo* init_mod(char* modFolder) {
+    char buffer[256];
+    char modFolderName[256];
+    
+    sprintf(modFolderName, ".\\mods\\%s\\mod-info.txt", modFolder);
+    
+    OFSTRUCT of = {0};
+    DWORD bytes_read = 0;
+    HANDLE modInfoFile = OpenFile(modFolderName, &of, OF_READ);
+    
+    ReadFile(modInfoFile, &buffer, sizeof(buffer), &bytes_read, NULL);
+
+    modInfo* mod = malloc(sizeof(mod));
+
+    mod->name = strtok(buffer, "\r\n");
+    mod->version = strtok(NULL, "\r\n");
+    mod->entrydll = strtok(NULL, "\r\n");
+
+    char EntryDLL[256];
+    sprintf(EntryDLL, ".\\mods\\%s\\%s", modFolder, mod->entrydll);
+    printf("entry path: %s\n", EntryDLL);
+    HINSTANCE hinstLib = LoadLibraryA(EntryDLL); 
+    if (hinstLib != NULL) 
+    { 
+      mod->init = GetProcAddress(hinstLib, "init"); 
+
+      if (mod->init == NULL){
+        perror("FUCK"); // will change to something better later
+        return; // also checks like this should be added to the other functions
+      }
+      mod->init(); 
+      mod->detourInit = GetProcAddress(hinstLib, "detourInit"); 
+      
+
+      printf("mod name: %s\n", mod->name);
+      printf("mod version: %s\n", mod->version);
+      printf("entry dll: %s\n", mod->entrydll);
+        
+
+      return mod;
+    }
+}
+modList* modlist;
+void init_modloader(){
+    modlist = malloc(sizeof(modList));
+    modlist->length = 0;
+    modlist->mods = malloc(sizeof(modInfo*));
+
+    WIN32_FIND_DATA fileData;
+    HANDLE findHandle = INVALID_HANDLE_VALUE;
+    char* path = ".\\mods\\*";
+    char modFolder[MAX_PATH];
+    findHandle = FindFirstFile(path, &modFolder);
+    if (findHandle != INVALID_HANDLE_VALUE)
+    {
+      while (FindNextFile(findHandle, &fileData) != 0) 
+        {
+            if ((fileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0
+                && (fileData.cFileName[0] != '.'))
+            {
+
+                modInfo* mod = init_mod(fileData.cFileName);
+                appendModToModList(modlist, mod);
+            }
+        }
+    }
+}
+
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD nReason, LPVOID lpReserved)
 {
@@ -34,15 +115,21 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD nReason, LPVOID lpReserved)
 
   if (nReason == DLL_PROCESS_ATTACH)
   {
+
     AllocConsole();
     freopen("CONOUT$", "w", stdout);
+
+    init_modloader();
 
     DetourRestoreAfterWith();
 
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
 
-    DetourAttach(func_ptr, &testInjection);
+    for (size_t i = 0; i < modlist->length; i++)
+    {
+        modlist->mods[i]->detourInit(DetourAttach);
+    }
 
     DetourTransactionCommit();
   }
@@ -50,7 +137,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD nReason, LPVOID lpReserved)
   {
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
-    DetourDetach(func_ptr, &testInjection);
     DetourTransactionCommit();
   }
 

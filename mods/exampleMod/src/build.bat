@@ -1,0 +1,1 @@
+gcc --shared -o ../examplemod.dll ./exampleMod.c

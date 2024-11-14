@@ -1,0 +1,3 @@
+examplemod
+0.0
+examplemod.dll
