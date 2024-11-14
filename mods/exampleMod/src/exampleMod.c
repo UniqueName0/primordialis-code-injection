@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <windows.h>
 
-#define Address(value) ((baseAddress < 0x140000000) ? (baseAddress + value) : (baseAddress + value - 0x140000000))
+#define Address(value) ((value < 0x140000000) ? (baseAddress + value) : (baseAddress + value - 0x140000000))
 
 
 

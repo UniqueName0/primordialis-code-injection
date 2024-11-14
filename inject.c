@@ -7,7 +7,7 @@
 
 #pragma comment(lib, "user32.lib")
 
-#define Address(value) ((baseAddress < 0x140000000) ? (baseAddress + value) : (baseAddress + value - 0x140000000))
+#define Address(value) ((value < 0x140000000) ? (baseAddress + value) : (baseAddress + value - 0x140000000))
 
 uintptr_t baseAddress;
 
