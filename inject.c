@@ -18,6 +18,13 @@
 
 uintptr_t baseAddress;
 
+#define panic()                                                                \
+	printf("panic at %s:%d\n", __FILE__, __LINE__);                          \
+	fflush(stdout);                                                          \
+	while (1) {                                                              \
+	} // we loop to prevent closing the console so the user can read the
+	  // error, having a logging system in future is a better idea
+
 typedef struct {
 	char *name;
 	char *version;
@@ -105,15 +112,14 @@ void init_modloader() {
 
 void ParseConfigFile(char *content, char *modname, ModInfo *info) {
 	char **fields[3] = {&info->name, &info->version, &info->entrydll};
-	printf("Parsing config for mod %s\n", modname);
+	printf("Parsing config for modid '%s'\n", modname);
 	printf("%s\n", content);
 	for (int i = 0; i < 3; ++i) {
 		if (!*content) {
-			printf("Config file for mod %s malformed, missing values\n",
-				 modname);
-			while (1) {
-			}
-			exit(1);
+			printf(
+			    "Config file for modid '%s' malformed, missing values\n",
+			    modname);
+			panic();
 		}
 		char *last = content;
 		for (; *content != '\r' && *content != '\n' && *content;
@@ -122,6 +128,7 @@ void ParseConfigFile(char *content, char *modname, ModInfo *info) {
 		size_t len = content - last + 1;
 		char *field = malloc(len);
 		memcpy(field, last, len);
+		field[len - 1] = '\0';
 		*fields[i] = field;
 		if (*content == '\r')
 			++content;
@@ -145,7 +152,6 @@ ModInfo *initMod(char *modFolderName) {
 						 // if you are building on linux
 	ReadFile(ModInfoFile, &modInfoBuffer, sizeof(modInfoBuffer), &bytes_read,
 		   NULL);
-	printf("%s\n", modInfoBuffer);
 
 	// reads mod info from mod-info.txt file
 	ModInfo *mod = malloc(sizeof(ModInfo));
@@ -162,13 +168,19 @@ ModInfo *initMod(char *modFolderName) {
 		// calls init function if it exists
 		if (mod->init != NULL) {
 			mod->init();
+		} else {
+			printf("Mod '%s' is missing init function\n", mod->name);
+			panic()
 		}
 
-		printf("mod name: %s\n", mod->name);
-		printf("mod version: %s\n", mod->version);
-		printf("entry dll: %s\n", mod->entrydll);
-
+		printf("Loaded mod '%s' version %s with dll %s\n", mod->name,
+			 mod->version, mod->entrydll);
 		return mod;
+	} else {
+		printf("Error while loading mod '%s', no dll found - should be at "
+			 "mods\\%s\\%s\n",
+			 mod->name, modFolderName, mod->entrydll);
+		panic();
 	}
 }
 
