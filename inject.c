@@ -28,7 +28,7 @@ typedef struct {
 
 void appendModToModList(modList* modlist, modInfo* mod){
   modlist->length++;
-  realloc(modlist->mods, sizeof(modInfo*) * modlist->length);
+  modlist->mods = realloc(modlist->mods, sizeof(modInfo*) * modlist->length);
   modlist->mods[modlist->length - 1] = mod;
 }
 
@@ -108,10 +108,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD nReason, LPVOID lpReserved)
   void* TargetFunctionAddress = (void*)Address(0x14002db80);
   *func_ptr = TargetFunctionAddress;
 
+  /* shouldn't ever be a helper process so this isn't needed
   if (DetourIsHelperProcess())
   {
     return TRUE;
   }
+  */
 
   if (nReason == DLL_PROCESS_ATTACH)
   {
