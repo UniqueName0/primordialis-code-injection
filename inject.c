@@ -1,6 +1,9 @@
-#include "Detours/include/detours.h"
-#include "WindowsHModular/windows_loader.h"
 #include "debugTools.c"
+// clang-format off
+#include "WindowsHModular/windows_loader.h"
+#include "Detours/include/detours.h"
+// clang-format on
+// detours is a bit crap and doesn't include windows.h itself but it needs it
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,22 +23,21 @@ typedef struct {
 	char *entrydll;
 
 	void (*init)();
-	void (*detourInit)(long long (*DetourAttach)(void **, void *));
-} modInfo;
+} ModInfo;
 
 typedef struct {
 	int length;
-	modInfo **mods;
-} modList;
+	ModInfo **mods;
+} ModList;
 
-void appendModToModList(modList *modlist, modInfo *mod) {
+void appendModToModList(ModList *modlist, ModInfo *mod) {
 	modlist->length++;
 	modlist->mods =
-	    realloc(modlist->mods, sizeof(modInfo *) * modlist->length);
+	    realloc(modlist->mods, sizeof(ModInfo *) * modlist->length);
 	modlist->mods[modlist->length - 1] = mod;
 }
 
-modInfo *init_mod(char *modFolder) {
+ModInfo *init_mod(char *modFolder) {
 	char buffer[256];
 	char modFolderName[256];
 
@@ -43,11 +45,11 @@ modInfo *init_mod(char *modFolder) {
 
 	OFSTRUCT of = {0};
 	DWORD bytes_read = 0;
-	HANDLE modInfoFile = OpenFile(modFolderName, &of, OF_READ);
+	HANDLE ModInfoFile = OpenFile(modFolderName, &of, OF_READ);
 
-	ReadFile(modInfoFile, &buffer, sizeof(buffer), &bytes_read, NULL);
+	ReadFile(ModInfoFile, &buffer, sizeof(buffer), &bytes_read, NULL);
 
-	modInfo *mod = malloc(sizeof(mod));
+	ModInfo *mod = malloc(sizeof(mod));
 
 	mod->name = strtok(buffer, "\r\n");
 	mod->version = strtok(NULL, "\r\n");
@@ -66,7 +68,6 @@ modInfo *init_mod(char *modFolder) {
 					 // other functions
 		}
 		mod->init();
-		mod->detourInit = GetProcAddress(hinstLib, "detourInit");
 
 		printf("mod name: %s\n", mod->name);
 		printf("mod version: %s\n", mod->version);
@@ -75,11 +76,11 @@ modInfo *init_mod(char *modFolder) {
 		return mod;
 	}
 }
-modList *modlist;
+ModList *modlist;
 void init_modloader() {
-	modlist = malloc(sizeof(modList));
+	modlist = malloc(sizeof(ModList));
 	modlist->length = 0;
-	modlist->mods = malloc(sizeof(modInfo *));
+	modlist->mods = malloc(sizeof(ModInfo *));
 
 	WIN32_FIND_DATA fileData;
 	HANDLE findHandle = INVALID_HANDLE_VALUE;
@@ -92,7 +93,77 @@ void init_modloader() {
 				  0 &&
 			    (fileData.cFileName[0] != '.')) {
 
-				modInfo *mod = init_mod(fileData.cFileName);
+				ModInfo *mod = init_mod(fileData.cFileName);
+				appendModToModList(modlist, mod);
+			}
+		}
+	}
+}
+
+#pragma comment(lib, "user32.lib")
+
+ModInfo *initMod(char *modFolderName) {
+	char buffer[MAX_PATH];
+	char modFolderPath[MAX_PATH];
+
+	sprintf(modFolderPath, ".\\mods\\%s\\mod-info.txt", modFolderName);
+
+	// opens and reads info file, will be changed to fopen if I can get
+	// it working on windows
+	OFSTRUCT of = {0};
+	DWORD bytes_read = 0;
+	HANDLE ModInfoFile =
+	    (HANDLE)OpenFile(modFolderName, &of,
+				   OF_READ); // mingw64 might complain about this
+						 // if you are building on linux
+	ReadFile(ModInfoFile, &buffer, sizeof(buffer), &bytes_read, NULL);
+
+	// reads mod info from mod-info.txt file
+	ModInfo *mod = malloc(sizeof(ModInfo));
+	mod->name = strtok(buffer, "\r\n");
+	mod->version = strtok(NULL, "\r\n");
+	mod->entrydll = strtok(NULL, "\r\n");
+
+	// loads entry dll
+	char EntryDLL[MAX_PATH];
+	sprintf(EntryDLL, ".\\mods\\%s\\%s", modFolderName, mod->entrydll);
+	printf("entry path: %s\n", EntryDLL);
+	HINSTANCE hinstLib = LoadLibraryA(EntryDLL);
+	if (hinstLib != NULL) {
+		mod->init = (void *)GetProcAddress(hinstLib, "init");
+
+		// calls init function if it exists
+		if (mod->init != NULL) {
+			mod->init();
+		}
+
+		printf("mod name: %s\n", mod->name);
+		printf("mod version: %s\n", mod->version);
+		printf("entry dll: %s\n", mod->entrydll);
+
+		return mod;
+	}
+}
+
+ModList *modlist;
+void initModLoader() {
+	modlist = malloc(sizeof(ModList));
+	modlist->length = 0;
+	modlist->mods = malloc(sizeof(ModInfo *));
+
+	WIN32_FIND_DATA fileData;
+	HANDLE findHandle = INVALID_HANDLE_VALUE;
+
+	// iterates subfolders in ./mods/ folder
+	char *path = ".\\mods\\*";
+	char modFolder[MAX_PATH];
+	findHandle = FindFirstFile(path, (LPWIN32_FIND_DATAA)&modFolder);
+	if (findHandle != INVALID_HANDLE_VALUE) {
+		while (FindNextFile(findHandle, &fileData) != 0) {
+			if ((fileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) !=
+				  0 &&
+			    (fileData.cFileName[0] != '.')) {
+				ModInfo *mod = initMod(fileData.cFileName);
 				appendModToModList(modlist, mod);
 			}
 		}
@@ -100,34 +171,14 @@ void init_modloader() {
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD nReason, LPVOID lpReserved) {
-	baseAddress = (uintptr_t)GetModuleHandleA(NULL);
-	PVOID *func_ptr = (PVOID *)malloc(sizeof(PVOID));
-	void *TargetFunctionAddress = (void *)Address(0x14002db80);
-	*func_ptr = TargetFunctionAddress;
-	freopen(".\\logs.txt", "w", stdout);
-	printf("nReason = %lu\n", nReason);
 
 	if (nReason == DLL_PROCESS_ATTACH) {
-
 		AllocConsole();
 		freopen("CONOUT$", "w", stdout);
 
-		init_modloader();
-
-		DetourRestoreAfterWith();
-
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-
-		for (size_t i = 0; i < modlist->length; i++) {
-			modlist->mods[i]->detourInit(DetourAttach);
-		}
-
-		DetourTransactionCommit();
+		initModLoader();
 	} else if (nReason == DLL_PROCESS_DETACH) {
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourTransactionCommit();
+		// needs something to deinit the modloader
 	}
 
 	return TRUE;

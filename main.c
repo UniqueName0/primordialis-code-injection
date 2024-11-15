@@ -44,25 +44,31 @@ int main() {
   ZeroMemory(&pi, sizeof(pi));
   printf("[*] Target Process: %s\n", exePath);
 
+  // starts game in suspended state
   if (!CreateProcessA(exePath, GetCommandLineA(), NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &si, &pi)){
     printf("Failed to create process. Error code: %d\n", GetLastError());
     return 1;
   };
-  //printf("Error code: %d\n", GetLastError());
   printf("[*] pHandle: %i\n", pi.dwProcessId);
 
+  // gets the newly created game process
   ph = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pi.dwProcessId);
 
+  // writes inject.dll into game memory
   rb = VirtualAllocEx(ph, NULL, injectLen, (MEM_RESERVE | MEM_COMMIT), PAGE_EXECUTE_READWRITE);
-
   SIZE_T bytesWritten;
   BOOL success = WriteProcessMemory(ph, rb, injectDLL, injectLen, &bytesWritten);
+
   printf("[*] WriteProcessMemory: %i\n", success);
   printf("    \\-- bytes written: %zu\n", bytesWritten);
-  // our process start new thread
+
+  // start the modloader in new thread
   rt = CreateRemoteThread(ph, NULL, 0, (LPTHREAD_START_ROUTINE)lb, rb, 0, NULL);
 
-  //continues game start after running mod loading dll
+  // waits untill remote thread is complete
+  WaitForSingleObject(rt, INFINITE);
+
+  // starts up game
   ResumeThread(pi.hThread);
 
   printf("created thread\n");
