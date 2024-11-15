@@ -21,6 +21,7 @@ typedef struct _WIN32_FIND_DATA {
 	DWORD dwOID;
 	TCHAR cFileName[MAX_PATH];
 } WIN32_FIND_DATA, *LPWIN32_FIND_DATA;
+#define OF_READ 0
 BOOL FindNextFile(HANDLE hFindFile, LPWIN32_FIND_DATA lpFindFileData);
 HANDLE FindFirstFile(LPCTSTR lpFileName, LPWIN32_FIND_DATA lpFindFileData);
 HFILE OpenFile(LPCSTR lpFileName, LPOFSTRUCT lpReOpenBuff, UINT uStyle);

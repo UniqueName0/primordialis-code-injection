@@ -103,27 +103,53 @@ void init_modloader() {
 
 #pragma comment(lib, "user32.lib")
 
-ModInfo *initMod(char *modFolderName) {
-	char buffer[MAX_PATH];
-	char modFolderPath[MAX_PATH];
+void ParseConfigFile(char *content, char *modname, ModInfo *info) {
+	char **fields[3] = {&info->name, &info->version, &info->entrydll};
+	printf("Parsing config for mod %s\n", modname);
+	printf("%s\n", content);
+	for (int i = 0; i < 3; ++i) {
+		if (!*content) {
+			printf("Config file for mod %s malformed, missing values\n",
+				 modname);
+			while (1) {
+			}
+			exit(1);
+		}
+		char *last = content;
+		for (; *content != '\r' && *content != '\n' && *content;
+		     ++content) {
+		}
+		size_t len = content - last + 1;
+		char *field = malloc(len);
+		memcpy(field, last, len);
+		*fields[i] = field;
+		if (*content == '\r')
+			++content;
+		++content;
+	}
+}
 
-	sprintf(modFolderPath, ".\\mods\\%s\\mod-info.txt", modFolderName);
+ModInfo *initMod(char *modFolderName) {
+	char modInfoBuffer[MAX_PATH] = {'\0'};
+	char modInfoPath[MAX_PATH] = {'\0'};
+
+	sprintf(modInfoPath, ".\\mods\\%s\\mod-info.txt", modFolderName);
 
 	// opens and reads info file, will be changed to fopen if I can get
 	// it working on windows
 	OFSTRUCT of = {0};
 	DWORD bytes_read = 0;
 	HANDLE ModInfoFile =
-	    (HANDLE)OpenFile(modFolderName, &of,
+	    (HANDLE)OpenFile(modInfoPath, &of,
 				   OF_READ); // mingw64 might complain about this
 						 // if you are building on linux
-	ReadFile(ModInfoFile, &buffer, sizeof(buffer), &bytes_read, NULL);
+	ReadFile(ModInfoFile, &modInfoBuffer, sizeof(modInfoBuffer), &bytes_read,
+		   NULL);
+	printf("%s\n", modInfoBuffer);
 
 	// reads mod info from mod-info.txt file
 	ModInfo *mod = malloc(sizeof(ModInfo));
-	mod->name = strtok(buffer, "\r\n");
-	mod->version = strtok(NULL, "\r\n");
-	mod->entrydll = strtok(NULL, "\r\n");
+	ParseConfigFile(modInfoBuffer, modFolderName, mod);
 
 	// loads entry dll
 	char EntryDLL[MAX_PATH];
