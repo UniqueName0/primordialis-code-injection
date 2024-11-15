@@ -1,3 +1,4 @@
+#include "WindowsHModular/custom.h"
 #include "debugTools.c"
 // clang-format off
 #include "WindowsHModular/windows_loader.h"
@@ -45,11 +46,11 @@ ModInfo *init_mod(char *modFolder) {
 
 	OFSTRUCT of = {0};
 	DWORD bytes_read = 0;
-	HANDLE ModInfoFile = OpenFile(modFolderName, &of, OF_READ);
+	HANDLE ModInfoFile = (HANDLE)OpenFile(modFolderName, &of, OF_READ);
 
 	ReadFile(ModInfoFile, &buffer, sizeof(buffer), &bytes_read, NULL);
 
-	ModInfo *mod = malloc(sizeof(mod));
+	ModInfo *mod = malloc(sizeof(*mod));
 
 	mod->name = strtok(buffer, "\r\n");
 	mod->version = strtok(NULL, "\r\n");
@@ -60,7 +61,7 @@ ModInfo *init_mod(char *modFolder) {
 	printf("entry path: %s\n", EntryDLL);
 	HINSTANCE hinstLib = LoadLibraryA(EntryDLL);
 	if (hinstLib != NULL) {
-		mod->init = GetProcAddress(hinstLib, "init");
+		mod->init = (void (*)())GetProcAddress(hinstLib, "init");
 
 		if (mod->init == NULL) {
 			perror("FUCK"); // will change to something better later
@@ -85,7 +86,7 @@ void init_modloader() {
 	WIN32_FIND_DATA fileData;
 	HANDLE findHandle = INVALID_HANDLE_VALUE;
 	char *path = ".\\mods\\*";
-	char modFolder[MAX_PATH];
+	WIN32_FIND_DATA modFolder;
 	findHandle = FindFirstFile(path, &modFolder);
 	if (findHandle != INVALID_HANDLE_VALUE) {
 		while (FindNextFile(findHandle, &fileData) != 0) {
