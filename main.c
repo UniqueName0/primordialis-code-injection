@@ -25,6 +25,7 @@ LPWSTR ConvertToLPWSTR(const char* charArray) {
 
 
 int main() {
+  printf("Primordialis Modloader started\n");
   HANDLE ph; // process handle
   HANDLE rt; // remote thread
   LPVOID rb; // remote buffer
@@ -67,5 +68,10 @@ int main() {
 
   printf("created thread\n");
   CloseHandle(ph);
+  while (1) {
+    printf("Primordialis Modloader going to sleep");
+    Sleep(-1); // infinite sleep
+    printf("Primordialis Modloader awoke for some reason");
+  } // this makes the console not close
   return 0;
 }
