@@ -1,2 +1,2 @@
-inject.dll
-mods/exampleMod/examplemod.dll
+./inject.dll
+./mods/exampleMod/examplemod.dll
