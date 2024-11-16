@@ -27,14 +27,14 @@ void appendModToModList(ModList* modlist, ModInfo* mod){
 
 ModInfo* initMod(char* modFolderName) {
     char buffer[MAX_PATH];
-    char modFolderPath[MAX_PATH];
+    char modInfoPath[MAX_PATH];
 
-    sprintf(modFolderPath, ".\\mods\\%s\\mod-info.txt", modFolderName);
+    sprintf(modInfoPath, ".\\mods\\%s\\mod-info.txt", modFolderName);
 
     // opens and reads info file, will be changed to fopen if I can get it working on windows
-    OFSTRUCT of = {0};
+
     DWORD bytes_read = 0;
-    HANDLE modInfoFile = (HANDLE)OpenFile(modFolderName, &of, OF_READ); // mingw64 might complain about this if you are building on linux
+    HANDLE modInfoFile = (HANDLE)CreateFileA(modInfoPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL); // mingw64 might complain about this if you are building on linux
     ReadFile(modInfoFile, &buffer, sizeof(buffer), &bytes_read, NULL);
 
     // reads mod info from mod-info.txt file
