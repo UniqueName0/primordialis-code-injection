@@ -1,4 +1,5 @@
 #include "WindowsHLinux/windows_loader.h"
+DoesNothing;
 #include "debugTools.c"
 #include <stdint.h>
 #include <stdio.h>
