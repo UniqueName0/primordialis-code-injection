@@ -1,10 +1,6 @@
 #include "WindowsHModular/custom.h"
-#include "debugTools.c"
-// clang-format off
 #include "WindowsHModular/windows_loader.h"
-#include "Detours/include/detours.h"
-// clang-format on
-// detours is a bit crap and doesn't include windows.h itself but it needs it
+#include "debugTools.c"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
