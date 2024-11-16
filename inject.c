@@ -24,6 +24,11 @@ uintptr_t baseAddress;
 	while (1) {                                                              \
 	} // we loop to prevent closing the console so the user can read the
 	  // error, having a logging system in future is a better idea
+#define assert(cond)                                                           \
+	if (!(cond)) {                                                           \
+		printf("assert(%s) failed\n", #cond);                              \
+		panic();                                                           \
+	}
 
 typedef struct {
 	char *name;
@@ -45,69 +50,7 @@ void appendModToModList(ModList *modlist, ModInfo *mod) {
 	modlist->mods[modlist->length - 1] = mod;
 }
 
-ModInfo *init_mod(char *modFolder) {
-	char buffer[256];
-	char modFolderName[256];
-
-	sprintf(modFolderName, ".\\mods\\%s\\mod-info.txt", modFolder);
-
-	OFSTRUCT of = {0};
-	DWORD bytes_read = 0;
-	HANDLE ModInfoFile = (HANDLE)OpenFile(modFolderName, &of, OF_READ);
-
-	ReadFile(ModInfoFile, &buffer, sizeof(buffer), &bytes_read, NULL);
-
-	ModInfo *mod = malloc(sizeof(*mod));
-
-	mod->name = strtok(buffer, "\r\n");
-	mod->version = strtok(NULL, "\r\n");
-	mod->entrydll = strtok(NULL, "\r\n");
-
-	char EntryDLL[256];
-	sprintf(EntryDLL, ".\\mods\\%s\\%s", modFolder, mod->entrydll);
-	printf("entry path: %s\n", EntryDLL);
-	HINSTANCE hinstLib = LoadLibraryA(EntryDLL);
-	if (hinstLib != NULL) {
-		mod->init = (void (*)())GetProcAddress(hinstLib, "init");
-
-		if (mod->init == NULL) {
-			perror("FUCK"); // will change to something better later
-			return NULL; // also checks like this should be added to the
-					 // other functions
-		}
-		mod->init();
-
-		printf("mod name: %s\n", mod->name);
-		printf("mod version: %s\n", mod->version);
-		printf("entry dll: %s\n", mod->entrydll);
-
-		return mod;
-	}
-}
 ModList *modlist;
-void init_modloader() {
-	modlist = malloc(sizeof(ModList));
-	modlist->length = 0;
-	modlist->mods = malloc(sizeof(ModInfo *));
-
-	WIN32_FIND_DATA fileData;
-	HANDLE findHandle = INVALID_HANDLE_VALUE;
-	char *path = ".\\mods\\*";
-	WIN32_FIND_DATA modFolder;
-	findHandle = FindFirstFile(path, &modFolder);
-	if (findHandle != INVALID_HANDLE_VALUE) {
-		while (FindNextFile(findHandle, &fileData) != 0) {
-			if ((fileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) !=
-				  0 &&
-			    (fileData.cFileName[0] != '.')) {
-
-				ModInfo *mod = init_mod(fileData.cFileName);
-				appendModToModList(modlist, mod);
-			}
-		}
-	}
-}
-
 #pragma comment(lib, "user32.lib")
 
 void ParseConfigFile(char *content, char *modname, ModInfo *info) {
