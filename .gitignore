@@ -1,3 +1,6 @@
+out/inject.dll
+mods/exampleMod/examplemod.dll
+out/PrimordialisModloader.exe
 inject.dll
 main.exe
 mods/**/*.dll
