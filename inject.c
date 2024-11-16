@@ -1,3 +1,5 @@
+#include "WindowsHLinux/custom.h"
+#include "WindowsHLinux/include/win32/windows.h"
 #include "WindowsHLinux/windows_loader.h"
 DoesNothing;
 #include "debugTools.c"
@@ -37,7 +39,7 @@ void appendModToModList(ModList *modlist, ModInfo *mod) {
 ModList *mod_list;
 #pragma comment(lib, "user32.lib")
 
-void ParseConfigFile(char *content, char *modID, ModInfo *mod) {
+void parseConfigFile(char *content, char *modID, ModInfo *mod) {
 	size_t id_len = strlen(modID);
 	mod->id = malloc(id_len);
 	memcpy(mod->id, modID, id_len);
@@ -85,7 +87,7 @@ ModInfo *initMod(char *modID, ModApiHandle api) {
 
 	// reads mod info from mod-info.txt file
 	ModInfo *mod = malloc(sizeof(ModInfo));
-	ParseConfigFile(modInfoBuffer, modID, mod);
+	parseConfigFile(modInfoBuffer, modID, mod);
 
 	// loads entry dll
 	char EntryDLL[MAX_PATH];
@@ -135,6 +137,8 @@ void *acquireSharedResource(char *key,
 }
 
 void initModLoader() {
+	size_t oldProtect;
+	VirtualProtect((void *)baseAddress, 0x1000000, 0x40, &oldProtect);
 	api.getGameState = NULL;
 	api.getEnabledMods = getEnabledMods;
 	api.acquireSharedResource = acquireSharedResource;
@@ -146,8 +150,8 @@ void initModLoader() {
 
 	// iterates subfolders in ./mods/ folder
 	char *path = ".\\mods\\*";
-	char modFolder[MAX_PATH];
-	findHandle = FindFirstFile(path, (LPWIN32_FIND_DATAA)&modFolder);
+	WIN32_FIND_DATA modFolder;
+	findHandle = FindFirstFile(path, modFolder);
 	if (findHandle != INVALID_HANDLE_VALUE) {
 		while (FindNextFile(findHandle, &fileData) != 0) {
 			if ((fileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) !=
