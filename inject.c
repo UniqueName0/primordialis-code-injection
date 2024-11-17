@@ -36,7 +36,7 @@ void appendModToModList(ModList *modlist, ModInfo *mod) {
 	modlist->mods[modlist->length - 1] = mod;
 }
 
-ModList *mod_list;
+ModList mod_list;
 #pragma comment(lib, "user32.lib")
 
 void parseConfigFile(char *content, char *modID, ModInfo *mod) {
@@ -92,7 +92,7 @@ ModInfo *initMod(char *modID, ModApiHandle api) {
 	// loads entry dll
 	char EntryDLL[MAX_PATH];
 	sprintf(EntryDLL, ".\\mods\\%s\\%s", modID, mod->entrydll);
-	mod_logf("entry path: %s\n", EntryDLL);
+	mod_logf("Loading mod '%s' through dll %s\n", mod->name, EntryDLL);
 	HINSTANCE hinstLib = LoadLibraryA(EntryDLL);
 	if (hinstLib != NULL) {
 		mod->init = (void *)GetProcAddress(hinstLib, "init");
@@ -117,10 +117,9 @@ ModInfo *initMod(char *modID, ModApiHandle api) {
 	}
 }
 
-ModList *mod_list;
 ModApi api;
 
-ModList *getEnabledMods() { return mod_list; }
+ModList *getEnabledMods() { return &mod_list; }
 
 typedef struct SharedResource {
 	char *key;
@@ -225,10 +224,15 @@ void initModLoader() {
 	mod_logf("Successfully applied GameState core patch\n");
 
 	api.getGameState = getGameState;
+	mod_logf("hi?\n");
 	api.getEnabledMods = getEnabledMods;
+	mod_logf("hi2?\n");
 	api.acquireSharedResource = acquireSharedResource;
-	mod_list->length = 0;
-	mod_list->mods = malloc(sizeof(*mod_list->mods));
+	mod_logf("hi3?\n");
+	mod_list.length = 0;
+	mod_logf("i didn't die?\n");
+	mod_list.mods = malloc(sizeof(*mod_list.mods));
+	mod_logf("i died?\n");
 
 	WIN32_FIND_DATA fileData;
 	HANDLE findHandle = INVALID_HANDLE_VALUE;
@@ -236,6 +240,7 @@ void initModLoader() {
 	// iterates subfolders in ./mods/ folder
 	char *path = ".\\mods\\*";
 	WIN32_FIND_DATA modFolder;
+	mod_logf("Started loading mods\n");
 	findHandle = FindFirstFile(path, &modFolder);
 	if (findHandle != INVALID_HANDLE_VALUE) {
 		while (FindNextFile(findHandle, &fileData) != 0) {
@@ -245,12 +250,13 @@ void initModLoader() {
 				  0 &&
 			    (fileData.cFileName[0] != '.')) {
 				ModInfo *mod = initMod(fileData.cFileName, &api);
-				appendModToModList(mod_list, mod);
+				appendModToModList(&mod_list, mod);
 			}
 		}
 	}
 	mod_logf(
 	    "Primordialis Modloader injected dll initialisation completed\n");
+	flushLogs();
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD nReason, LPVOID lpReserved) {
