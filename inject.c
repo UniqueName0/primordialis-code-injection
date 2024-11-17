@@ -184,7 +184,7 @@ void applyGameStatePatch() {
 	mov rdi, &game_state
 	mov [rdi], rsi
 	mov rdi, &ret_addr
-	jmp [rdi]
+	jmp rdi
 	```
 	*/
 	// clang-format off
@@ -194,7 +194,7 @@ void applyGameStatePatch() {
 		0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01, // &game_state
 		0x48, 0x89, 0x37, 0x48, 0xBF,
 		0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01, // &ret_addr = start_addr + 0x1F
-		0xFF, 0x27};
+		0xFF, 0xE7};
 	// clang-format on
 	memWriteAddr(new_executable_instructions + 26, &game_state,
 			 1); // the memory isn't alligned so technically i think
@@ -209,7 +209,7 @@ void applyGameStatePatch() {
 		   new_executable);
 	hexDump("With new code content", new_executable,
 		  len(new_executable_instructions));
-	memWriteAddr(replace + 2, halt,
+	memWriteAddr(replace + 2, new_executable,
 			 2); // patterns are not byte, they are word so we need stride
 			     // 1 to not corrupt our data.
 	applyPatch(replace, len(replace), patch_addr);
