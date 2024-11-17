@@ -48,7 +48,8 @@ void parseConfigFile(char *content, char *modID, ModInfo *mod) {
 	memcpy(mod->id, modID, id_len);
 	char **fields[3] = {&mod->name, &mod->version, &mod->entrydll};
 	mod_logf("Parsing config for modid '%s'\n", modID);
-	mod_logf("%s\n", content);
+	mod_logf("Config file content:");
+	mod_logf("%s", content);
 	for (int i = 0; i < 3; ++i) {
 		if (!*content) {
 			mod_logf(
@@ -161,7 +162,7 @@ void applyGameStatePatch() {
 	*/
 	PatternByte replace[sizeof(patch)] = {
 	    0x48, 0xB9, 0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01, 0xFF,
-	    0x21, -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+	    0x21, 0x90, 0x90, 0x90, 0x90, 0x90, -1,   -1,   -1,   -1,   -1,
 	    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
 	    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
 	    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
@@ -203,13 +204,16 @@ void applyGameStatePatch() {
 	memWriteAddr(new_executable_instructions + 39, patch_addr + 0x1F, 1);
 	void *new_executable = allocExecutable(
 	    new_executable_instructions, sizeof(new_executable_instructions));
+	mod_logf("GameState will be captured in %p\n", &game_state);
 	mod_logf("Alllocated new code for core GameState patch at %p\n",
 		   new_executable);
-	memWriteAddr(replace + 2, new_executable,
+	hexDump("With new code content", new_executable,
+		  len(new_executable_instructions));
+	memWriteAddr(replace + 2, Address((void *)0x140027f20),
 			 2); // patterns are not byte, they are word so we need stride
 			     // 1 to not corrupt our data.
 	applyPatch(replace, len(replace), patch_addr);
-	hexDump("Patched core GameState path memory to", patch_addr,
+	hexDump("Changed core GameState patch memory to", patch_addr,
 		  len(replace));
 }
 
@@ -245,7 +249,7 @@ void initModLoader() {
 	findHandle = FindFirstFile(path, &modFolder);
 	if (findHandle != INVALID_HANDLE_VALUE) {
 		while (FindNextFile(findHandle, &fileData) != 0) {
-			mod_logf("found file in mods folder %s\n",
+			mod_logf("Found file in mods folder '%s'\n",
 				   fileData.cFileName);
 			if ((fileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) !=
 				  0 &&
