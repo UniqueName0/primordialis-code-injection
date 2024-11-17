@@ -32,6 +32,8 @@ int main() {
 	// paths
 	char *exePath = ".\\primordialis.exe";
 	char *parentPath = ".\\";
+	// i find this useful when debugging, perhaps we could create a config
+	// file so we can specify cheat engine path / similar?
 	system("Z:\\home\\nathan\\Documents\\CE\\Cheat_Engine.exe");
 
 	STARTUPINFOA si = {};

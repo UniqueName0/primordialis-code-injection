@@ -28,6 +28,9 @@ static inline void *Address(void *value) {
 		mod_logf("assert(%s) failed\n", #cond);                            \
 		panic();                                                           \
 	}
+#define len(arr)                                                               \
+	(sizeof(arr) /                                                           \
+	 sizeof(*arr)) // i've made this mistake twice now, not doing it again
 
 void appendModToModList(ModList *modlist, ModInfo *mod) {
 	modlist->length++;
@@ -167,7 +170,7 @@ void applyGameStatePatch() {
 	    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
 	    -1,   -1,   -1,   -1};
 	void *patch_addr = locatePatch(
-	    patch, sizeof(patch) / sizeof(patch[0]), Address(func_start),
+	    patch, len(patch), Address(func_start),
 	    Address(func_start + 0x1000000)); // TODO: parse the PE headers to get
 							  // the size of the executable region
 	assert(patch_addr != NULL);
@@ -192,25 +195,28 @@ void applyGameStatePatch() {
 		0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01, // &ret_addr = start_addr + 0x1F
 		0xFF, 0x27};
 	// clang-format on
-	memWrite(
-	    new_executable_instructions + 26,
-	    &game_state); // the memory isn't alligned so technically i think
-				// that byte casting is UB, but realistically a
-				// modern CPU should be able to perform an unalligned
-				// write so maybe do that later to make it nicer
-	memWrite(new_executable_instructions + 39, patch_addr + 0x1F);
+	memWriteAddr(new_executable_instructions + 26, &game_state,
+			 1); // the memory isn't alligned so technically i think
+			     // that byte casting is UB, but realistically a
+			     // modern CPU should be able to perform an unalligned
+			     // write so maybe do that later to make it nicer
+	memWriteAddr(new_executable_instructions + 39, patch_addr + 0x1F, 1);
 	void *new_executable = allocExecutable(
 	    new_executable_instructions, sizeof(new_executable_instructions));
 	mod_logf("Alllocated new code for core GameState patch at %p\n",
 		   new_executable);
-	memWrite(replace + 2, halt);
-	applyPatch(replace, sizeof(patch), patch_addr);
+	memWriteAddr(replace + 2, new_executable,
+			 2); // patterns are not byte, they are word so we need stride
+			     // 1 to not corrupt our data.
+	applyPatch(replace, len(replace), patch_addr);
+	hexDump("Patched core GameState path memory to", patch_addr,
+		  len(replace));
 }
 
 GameState *getGameState() { return game_state; }
 
 void initModLoader() {
-	setLogs(fopen(".\\PrimordialisModloader.log", "w"));
+	setLogs(fopen(".\\logs\\PrimordialisModloader.log", "w"));
 	mod_logf("Primordialis Modloader injected dll initialisation starting\n");
 
 	DWORD oldProtect;
@@ -224,15 +230,10 @@ void initModLoader() {
 	mod_logf("Successfully applied GameState core patch\n");
 
 	api.getGameState = getGameState;
-	mod_logf("hi?\n");
 	api.getEnabledMods = getEnabledMods;
-	mod_logf("hi2?\n");
 	api.acquireSharedResource = acquireSharedResource;
-	mod_logf("hi3?\n");
 	mod_list.length = 0;
-	mod_logf("i didn't die?\n");
 	mod_list.mods = malloc(sizeof(*mod_list.mods));
-	mod_logf("i died?\n");
 
 	WIN32_FIND_DATA fileData;
 	HANDLE findHandle = INVALID_HANDLE_VALUE;

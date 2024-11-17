@@ -13,7 +13,7 @@ void *locatePatch(PatternByte *pattern, size_t patternLen, byte *start,
 	for (; start < end; ++start) {
 		size_t i = 0;
 		for (; i < patternLen; ++i) {
-			if (pattern[i] > 0 && pattern[i] != start[i])
+			if (pattern[i] >= 0 && pattern[i] != start[i])
 				break;
 		}
 		if (i == patternLen)
@@ -24,12 +24,16 @@ void *locatePatch(PatternByte *pattern, size_t patternLen, byte *start,
 
 void applyPatch(PatternByte *replace, size_t replaceLen, byte *start) {
 	for (size_t i = 0; i < replaceLen; ++i) {
-		if (replace[i] > 0)
+		if (replace[i] >= 0)
 			start[i] = replace[i];
 	}
 }
 
-void memWrite(void *to, void *value) { memcpy(to, &value, sizeof(value)); }
+void memWriteAddr(void *to, void *value, size_t stride) {
+	for (int i = 0; i < 8; i++) {
+		((byte *)to)[stride * i] = ((byte *)&value)[i];
+	}
+}
 
 void *allocExecutable(byte *data, size_t len) {
 	void *addr = VirtualAlloc(NULL, len, 0x3000, 0x40);

@@ -13,7 +13,7 @@ void *locatePatch(PatternByte *pattern, size_t patternLen, byte *start,
 void applyPatch(PatternByte *replace, size_t len, byte *start);
 
 // effectively *(void **)to = value; but misallignment safe
-void memWrite(void *to, void *value);
+void memWriteAddr(void *to, void *value, size_t stride);
 
 void *allocExecutable(byte *data, size_t len);
 
