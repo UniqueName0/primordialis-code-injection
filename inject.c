@@ -1,31 +1,31 @@
-#include "WindowsHLinux/custom.h"
-#include "WindowsHLinux/include/win32/windows.h"
 #include "WindowsHLinux/windows_loader.h"
 DoesNothing;
 #include "debugTools.c"
 #include "modApi.h"
+#include "utils/utils.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+void *const func_start = (void *)0x140001005;
+
 #pragma comment(lib, "user32.lib")
 
-#define Address(value)                                                         \
-	((value < 0x140000000) ? (baseAddress + value)                           \
-				     : (baseAddress + value - 0x140000000))
-
 size_t baseAddress;
+static inline void *Address(void *value) {
+	return baseAddress + value - 0x140000000;
+}
 
 #define panic()                                                                \
-	printf("panic at %s:%d\n", __FILE__, __LINE__);                          \
+	mod_logf("panic at %s:%d\n", __FILE__, __LINE__);                        \
 	fflush(stdout);                                                          \
 	while (1) {                                                              \
 	} // we loop to prevent closing the console so the user can read the
 	  // error, having a logging system in future is a better idea
 #define assert(cond)                                                           \
 	if (!(cond)) {                                                           \
-		printf("assert(%s) failed\n", #cond);                              \
+		mod_logf("assert(%s) failed\n", #cond);                            \
 		panic();                                                           \
 	}
 
@@ -44,11 +44,11 @@ void parseConfigFile(char *content, char *modID, ModInfo *mod) {
 	mod->id = malloc(id_len);
 	memcpy(mod->id, modID, id_len);
 	char **fields[3] = {&mod->name, &mod->version, &mod->entrydll};
-	printf("Parsing config for modid '%s'\n", modID);
-	printf("%s\n", content);
+	mod_logf("Parsing config for modid '%s'\n", modID);
+	mod_logf("%s\n", content);
 	for (int i = 0; i < 3; ++i) {
 		if (!*content) {
-			printf(
+			mod_logf(
 			    "Config file for modid '%s' malformed, missing values\n",
 			    modID);
 			panic();
@@ -92,7 +92,7 @@ ModInfo *initMod(char *modID, ModApiHandle api) {
 	// loads entry dll
 	char EntryDLL[MAX_PATH];
 	sprintf(EntryDLL, ".\\mods\\%s\\%s", modID, mod->entrydll);
-	printf("entry path: %s\n", EntryDLL);
+	mod_logf("entry path: %s\n", EntryDLL);
 	HINSTANCE hinstLib = LoadLibraryA(EntryDLL);
 	if (hinstLib != NULL) {
 		mod->init = (void *)GetProcAddress(hinstLib, "init");
@@ -101,17 +101,18 @@ ModInfo *initMod(char *modID, ModApiHandle api) {
 		if (mod->init != NULL) {
 			mod->init(api);
 		} else {
-			printf("Mod '%s' is missing init function\n", mod->name);
+			mod_logf("Mod '%s' is missing init function\n", mod->name);
 			panic()
 		}
 
-		printf("Loaded mod '%s' version %s with dll %s\n", mod->name,
-			 mod->version, mod->entrydll);
+		mod_logf("Loaded mod '%s' version %s with dll %s\n", mod->name,
+			   mod->version, mod->entrydll);
 		return mod;
 	} else {
-		printf("Error while loading mod '%s', no dll found - should be at "
-			 "mods\\%s\\%s\n",
-			 mod->name, modID, mod->entrydll);
+		mod_logf(
+		    "Error while loading mod '%s', no dll found - should be at "
+		    "mods\\%s\\%s\n",
+		    mod->name, modID, mod->entrydll);
 		panic();
 	}
 }
@@ -129,17 +130,101 @@ typedef struct SharedResource {
 		     // the data, and it's also a one time lookup so not so bad
 } SharedResource;
 
-SharedResource sharedResources = {};
+SharedResource shared_resources = {};
 
 void *acquireSharedResource(char *key,
 				    void (*constructor)(void **resource_pointer)) {
-	SharedResource *searching = &sharedResources;
+	SharedResource *searching = &shared_resources;
 }
 
+GameState *game_state;
+
+void halt() {
+	while (1) {
+	}
+}
+
+void applyGameStatePatch() {
+	PatternByte patch[] = {0x48, 0x89, 0xbe, 0x70, 0x03, 0x00, 0x00, 0x48,
+				     0xb9, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00,
+				     0x00, 0x48, 0x89, 0x8e, 0x78, 0x03, 0x00, 0x00,
+				     0x48, 0x89, 0x86, 0x80, 0x03, 0x00, 0x00, 0xc7,
+				     0x86, 0x88, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00,
+				     0x00, 0xb9, 0x00, 0x00, 0x20, 0x00};
+	/*
+	```asm
+	mov rcx, &new_addr
+	jmp [rcx]
+	```
+	*/
+	PatternByte replace[sizeof(patch)] = {
+	    0x48, 0xB9, 0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01, 0xFF,
+	    0x21, -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+	    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+	    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+	    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+	    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+	    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+	    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+	    -1,   -1,   -1,   -1};
+	void *patch_addr = locatePatch(
+	    patch, sizeof(patch) / sizeof(patch[0]), Address(func_start),
+	    Address(func_start + 0x1000000)); // TODO: parse the PE headers to get
+							  // the size of the executable region
+	assert(patch_addr != NULL);
+	mod_logf("Located GameState core patch address at %p\n", patch_addr);
+
+	// we want to capture the GameState for sharing with the api
+	// rdi is safe to clobber, it gets overwritten later
+	/*
+	```asm
+	mov rdi, &game_state
+	mov [rdi], rsi
+	mov rdi, &ret_addr
+	jmp [rdi]
+	```
+	*/
+	// clang-format off
+	byte new_executable_instructions[] = {
+		0x48, 0xb9, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x48, 0x89, 0x8e, 0x78, 0x03, 0x00, 0x00, 0x48, 0x89, 0x86, 0x80, 0x03, 0x00, 0x00, // previous stuff
+		0x48, 0xBF,
+		0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01, // &game_state
+		0x48, 0x89, 0x37, 0x48, 0xBF,
+		0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01, // &ret_addr = start_addr + 0x1F
+		0xFF, 0x27};
+	// clang-format on
+	memWrite(
+	    new_executable_instructions + 26,
+	    &game_state); // the memory isn't alligned so technically i think
+				// that byte casting is UB, but realistically a
+				// modern CPU should be able to perform an unalligned
+				// write so maybe do that later to make it nicer
+	memWrite(new_executable_instructions + 39, patch_addr + 0x1F);
+	void *new_executable = allocExecutable(
+	    new_executable_instructions, sizeof(new_executable_instructions));
+	mod_logf("Alllocated new code for core GameState patch at %p\n",
+		   new_executable);
+	memWrite(replace + 2, halt);
+	applyPatch(replace, sizeof(patch), patch_addr);
+}
+
+GameState *getGameState() { return game_state; }
+
 void initModLoader() {
-	size_t oldProtect;
-	VirtualProtect((void *)baseAddress, 0x1000000, 0x40, &oldProtect);
-	api.getGameState = NULL;
+	setLogs(fopen(".\\PrimordialisModloader.log", "w"));
+	mod_logf("Primordialis Modloader injected dll initialisation starting\n");
+
+	DWORD oldProtect;
+	VirtualProtect(
+	    (void *)baseAddress, 0x197000, 0x40,
+	    &oldProtect); // TODO: parse PE header for this info, this will break
+				// when more content is added to the game
+	mod_logf("Successfully disabled memory protection\n");
+
+	applyGameStatePatch();
+	mod_logf("Successfully applied GameState core patch\n");
+
+	api.getGameState = getGameState;
 	api.getEnabledMods = getEnabledMods;
 	api.acquireSharedResource = acquireSharedResource;
 	mod_list->length = 0;
@@ -151,9 +236,11 @@ void initModLoader() {
 	// iterates subfolders in ./mods/ folder
 	char *path = ".\\mods\\*";
 	WIN32_FIND_DATA modFolder;
-	findHandle = FindFirstFile(path, modFolder);
+	findHandle = FindFirstFile(path, &modFolder);
 	if (findHandle != INVALID_HANDLE_VALUE) {
 		while (FindNextFile(findHandle, &fileData) != 0) {
+			mod_logf("found file in mods folder %s\n",
+				   fileData.cFileName);
 			if ((fileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) !=
 				  0 &&
 			    (fileData.cFileName[0] != '.')) {
@@ -162,6 +249,8 @@ void initModLoader() {
 			}
 		}
 	}
+	mod_logf(
+	    "Primordialis Modloader injected dll initialisation completed\n");
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD nReason, LPVOID lpReserved) {

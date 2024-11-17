@@ -1,9 +1,7 @@
 // messy circular type dependency
-typedef struct ModInfo Modinfo;
-
 typedef struct {
 	int length;
-	ModInfo **mods;
+	struct ModInfo **mods;
 } ModList;
 
 typedef struct {
@@ -15,10 +13,10 @@ typedef struct ModApi {
 	void *(*acquireSharedResource)(
 	    char *key, void (*constructor)(void **resource_pointer));
 	ModList *(*getEnabledMods)();
-	GameState *(*getGameState)(); // this acquires the "game state" which is
-						// the state that's passed around to
-						// most functions, according to kali
-						// providing a concrete is ok
+	GameState *(
+	    *getGameState)(); // this acquires the "game state" which is the state
+				    // that's passed around to most functions, according
+				    // to kali providing a concrete is ok
 } ModApi, *ModApiHandle;
 
 typedef struct ModInfo {
