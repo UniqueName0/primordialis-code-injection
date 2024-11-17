@@ -157,12 +157,12 @@ void applyGameStatePatch() {
 	/*
 	```asm
 	mov rcx, &new_addr
-	jmp [rcx]
+	jmp rcx
 	```
 	*/
 	PatternByte replace[sizeof(patch)] = {
 	    0x48, 0xB9, 0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01, 0xFF,
-	    0x21, 0x90, 0x90, 0x90, 0x90, 0x90, -1,   -1,   -1,   -1,   -1,
+	    0xE1, 0x90, 0x90, 0x90, 0x90, 0x90, -1,   -1,   -1,   -1,   -1,
 	    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
 	    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
 	    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
@@ -209,7 +209,7 @@ void applyGameStatePatch() {
 		   new_executable);
 	hexDump("With new code content", new_executable,
 		  len(new_executable_instructions));
-	memWriteAddr(replace + 2, Address((void *)0x140027f20),
+	memWriteAddr(replace + 2, halt,
 			 2); // patterns are not byte, they are word so we need stride
 			     // 1 to not corrupt our data.
 	applyPatch(replace, len(replace), patch_addr);
