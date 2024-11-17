@@ -20,6 +20,7 @@ static inline void *Address(void *value) {
 #define panic()                                                                \
 	mod_logf("panic at %s:%d\n", __FILE__, __LINE__);                        \
 	fflush(stdout);                                                          \
+	flushLogs();                                                             \
 	while (1) {                                                              \
 	} // we loop to prevent closing the console so the user can read the
 	  // error, having a logging system in future is a better idea
@@ -189,19 +190,19 @@ void applyGameStatePatch() {
 	*/
 	// clang-format off
 	byte new_executable_instructions[] = {
-		0x48, 0xb9, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x48, 0x89, 0x8e, 0x78, 0x03, 0x00, 0x00, 0x48, 0x89, 0x86, 0x80, 0x03, 0x00, 0x00, // previous stuff
+	 	0x48, 0x89, 0xbe, 0x70, 0x03, 0x00, 0x00, 0x48, 0xb9, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x48, 0x89, 0x8e, 0x78, 0x03, 0x00, 0x00, 0x48, 0x89, 0x86, 0x80, 0x03, 0x00, 0x00, // previous stuff
 		0x48, 0xBF,
 		0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01, // &game_state
 		0x48, 0x89, 0x37, 0x48, 0xBF,
 		0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01, // &ret_addr = start_addr + 0x1F
 		0xFF, 0xE7};
 	// clang-format on
-	memWriteAddr(new_executable_instructions + 26, &game_state,
+	memWriteAddr(new_executable_instructions + 33, &game_state,
 			 1); // the memory isn't alligned so technically i think
 			     // that byte casting is UB, but realistically a
 			     // modern CPU should be able to perform an unalligned
 			     // write so maybe do that later to make it nicer
-	memWriteAddr(new_executable_instructions + 39, patch_addr + 0x1F, 1);
+	memWriteAddr(new_executable_instructions + 46, patch_addr + 0x1F, 1);
 	void *new_executable = allocExecutable(
 	    new_executable_instructions, sizeof(new_executable_instructions));
 	mod_logf("GameState will be captured in %p\n", &game_state);
