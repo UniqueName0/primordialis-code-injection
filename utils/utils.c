@@ -6,6 +6,7 @@ DoesNothing;
 
 FILE *util_log_file;
 void setLogs(FILE *log_file) { util_log_file = log_file; }
+void flushLogs() { fflush(util_log_file); }
 
 void *locatePatch(PatternByte *pattern, size_t patternLen, byte *start,
 			byte *end) {

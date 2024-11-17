@@ -20,7 +20,7 @@ void *allocExecutable(byte *data, size_t len);
 extern FILE *util_log_file;
 
 void setLogs(FILE *log_file);
-
+void flushLogs();
 #define mod_logf(format, ...)                                                  \
 	printf(format __VA_OPT__(, ) __VA_ARGS__);                               \
 	fprintf(util_log_file, format __VA_OPT__(, ) __VA_ARGS__);
