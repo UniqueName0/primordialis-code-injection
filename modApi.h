@@ -17,6 +17,7 @@ typedef struct ModApi {
 	    *getGameState)(); // this acquires the "game state" which is the state
 				    // that's passed around to most functions, according
 				    // to kali providing a concrete is ok
+	unsigned (*registerID)(char *key);
 } ModApi, *ModApiHandle;
 
 typedef struct ModInfo {

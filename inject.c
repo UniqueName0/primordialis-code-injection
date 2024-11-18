@@ -154,6 +154,38 @@ void *acquireSharedResource(char *key,
 	return new;
 }
 
+// i'm way too lazy to write a hashmap, and a linked list is asymptotically
+// equivalent to a vector
+typedef struct IdRegistry {
+	char *key;
+	struct IdRegistry *next;
+} IdRegistry;
+
+IdRegistry registry = {};
+
+unsigned registerID(char *key) {
+	unsigned id = 0;
+	IdRegistry *search = &registry;
+#define RET_ID                                                                 \
+	assert((id & (0xFF << 0x18)) < 0x20);                                    \
+	return id
+	while (search->next) {
+		if (strcmp(search->key, key) == 0)
+			RET_ID;
+		++id;
+		search = search->next;
+	}
+	if (strcmp(search->key, key) == 0)
+		RET_ID;
+	search->next = malloc(sizeof(*search->next));
+	search->next->next = NULL;
+	size_t key_len = strlen(key);
+	search->next->key = malloc(key_len);
+	memcpy(search->next->key, key, key_len);
+	RET_ID;
+#undef RET_ID
+}
+
 GameState *game_state;
 
 void halt() {
