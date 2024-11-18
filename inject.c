@@ -176,7 +176,7 @@ void applyGameStatePatch() {
 	    Address(func_start + 0x1000000)); // TODO: parse the PE headers to get
 							  // the size of the executable region
 	assert(patch_addr != NULL);
-	mod_logf("Located GameState core patch address at %p\n", patch_addr);
+	mod_logf("Located GameState core patch address at 0x%p\n", patch_addr);
 
 	// we want to capture the GameState for sharing with the api
 	// rdi is safe to clobber, it gets overwritten later
@@ -205,8 +205,8 @@ void applyGameStatePatch() {
 	memWriteAddr(new_executable_instructions + 46, patch_addr + 0x1F, 1);
 	void *new_executable = allocExecutable(
 	    new_executable_instructions, sizeof(new_executable_instructions));
-	mod_logf("GameState will be captured in %p\n", &game_state);
-	mod_logf("Alllocated new code for core GameState patch at %p\n",
+	mod_logf("GameState will be captured in 0x%p\n", &game_state);
+	mod_logf("Alllocated new code for core GameState patch at 0x%p\n",
 		   new_executable);
 	hexDump("With new code content", new_executable,
 		  len(new_executable_instructions));
@@ -225,10 +225,13 @@ void initModLoader() {
 	mod_logf("Primordialis Modloader injected dll initialisation starting\n");
 
 	DWORD oldProtect;
-	VirtualProtect(
-	    (void *)baseAddress, 0x197000, 0x40,
-	    &oldProtect); // TODO: parse PE header for this info, this will break
-				// when more content is added to the game
+	mod_logf("Parsing PE header resolved to 0x%d executable bytes\n",
+		   *(unsigned *)Address((void *)0x140000218));
+	VirtualProtect((void *)baseAddress,
+			   *(unsigned *)Address((void *)0x140000218),
+			   0x40, // this is the size of the .text section, hopefully
+				   // the address doesn't wander around
+			   &oldProtect);
 	mod_logf("Successfully disabled memory protection\n");
 
 	applyGameStatePatch();
