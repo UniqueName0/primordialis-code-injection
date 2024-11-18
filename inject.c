@@ -139,6 +139,19 @@ SharedResource shared_resources = {};
 void *acquireSharedResource(char *key,
 				    void (*constructor)(void **resource_pointer)) {
 	SharedResource *searching = &shared_resources;
+	while (searching != NULL) {
+		if (strcmp(key, searching->key) == 0) {
+			return searching->value;
+		}
+		searching = searching->next;
+	}
+	SharedResource *new = calloc(1, sizeof(*searching->next));
+	searching->next = new;
+	size_t key_len = strlen(key);
+	new->key = malloc(key_len);
+	memcpy(new->key, key, key_len);
+	constructor(&new->value);
+	return new;
 }
 
 GameState *game_state;
@@ -225,13 +238,13 @@ void initModLoader() {
 	mod_logf("Primordialis Modloader injected dll initialisation starting\n");
 
 	DWORD oldProtect;
-	mod_logf("Parsing PE header resolved to 0x%d executable bytes\n",
-		   *(unsigned *)Address((void *)0x140000218));
-	VirtualProtect((void *)baseAddress,
-			   *(unsigned *)Address((void *)0x140000218),
-			   0x40, // this is the size of the .text section, hopefully
-				   // the address doesn't wander around
-			   &oldProtect);
+	unsigned text_size = *(unsigned *)Address(
+	    (void *)0x140000218); // this is the size of the .text section,
+					  // hopefully the address doesn't wander around
+
+	mod_logf("Parsing PE header resolved to %x executable bytes\n",
+		   text_size);
+	VirtualProtect((void *)baseAddress, text_size, 0x40, &oldProtect);
 	mod_logf("Successfully disabled memory protection\n");
 
 	applyGameStatePatch();
