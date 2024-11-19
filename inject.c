@@ -17,22 +17,6 @@ static inline void *Address(void *value) {
 	return baseAddress + value - 0x140000000;
 }
 
-#define panic()                                                                \
-	mod_logf("panic at %s:%d\n", __FILE__, __LINE__);                        \
-	fflush(stdout);                                                          \
-	flushLogs();                                                             \
-	while (1) {                                                              \
-	} // we loop to prevent closing the console so the user can read the
-	  // error, having a logging system in future is a better idea
-#define assert(cond)                                                           \
-	if (!(cond)) {                                                           \
-		mod_logf("assert(%s) failed\n", #cond);                            \
-		panic();                                                           \
-	}
-#define len(arr)                                                               \
-	(sizeof(arr) /                                                           \
-	 sizeof(*arr)) // i've made this mistake twice now, not doing it again
-
 void appendModToModList(ModList *modlist, ModInfo *mod) {
 	modlist->length++;
 	modlist->mods =
