@@ -3,7 +3,6 @@ DoesNothing;
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <tlhelp32.h>
 
 char injectDLL[] = ".\\inject.dll";
 unsigned int injectLen = sizeof(injectDLL) + 1;
@@ -33,6 +32,9 @@ int main() {
 	// paths
 	char *exePath = ".\\primordialis.exe";
 	char *parentPath = ".\\";
+	// i find this useful when debugging, perhaps we could create a config
+	// file so we can specify cheat engine path / similar?
+	system("Z:\\home\\nathan\\Documents\\CE\\Cheat_Engine.exe");
 
 	STARTUPINFOA si = {};
 	si.cb = sizeof(si);
